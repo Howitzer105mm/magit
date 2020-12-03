@@ -85,7 +85,8 @@ which creates patches for all commits that are reachable from
    ("C-m l  " "Add cover letter" "--cover-letter")
    (5 magit-format-patch:--cover-from-description)
    (5 magit-format-patch:--notes)
-   (magit-format-patch:--output-directory)]
+   (magit-format-patch:--output-directory)
+   (magit-format-patch:--start-number)]
   ["Diff arguments"
    (magit-diff:-U)
    (magit-diff:-M)
@@ -234,6 +235,13 @@ which creates patches for all commits that are reachable from
   :shortarg "-o"
   :argument "--output-directory="
   :reader 'transient-read-existing-directory)
+
+(transient-define-argument magit-format-patch:--start-number ()
+  :description "Starting number for the patch"
+  :class 'transient-option
+  :key "C-m n  "
+  :argument "--start-number="
+  :reader 'transient-read-number-N+)
 
 ;;;###autoload (autoload 'magit-patch-apply "magit-patch" nil t)
 (transient-define-prefix magit-patch-apply (file &rest args)
