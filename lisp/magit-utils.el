@@ -1,6 +1,6 @@
 ;;; magit-utils.el --- various utilities  -*- lexical-binding: t; coding: utf-8 -*-
 
-;; Copyright (C) 2010-2020  The Magit Project Contributors
+;; Copyright (C) 2010-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
@@ -40,9 +40,9 @@
 
 (require 'cl-lib)
 (require 'dash)
-
-(eval-when-compile
-  (require 'subr-x))
+(require 'eieio)
+(require 'seq)
+(require 'subr-x)
 
 (require 'crm)
 
@@ -163,6 +163,7 @@ The value has the form ((COMMAND nil|PROMPT DEFAULT)...).
     (const delete-unmerged-branch)
     (const delete-pr-remote)
     (const drop-stashes)
+    (const set-and-push)
     (const amend-published)
     (const rebase-published)
     (const edit-published)
@@ -172,7 +173,7 @@ The value has the form ((COMMAND nil|PROMPT DEFAULT)...).
     (const kill-process)
     (const safe-with-wip)))
 
-(defcustom magit-no-confirm nil
+(defcustom magit-no-confirm '(set-and-push)
   "A list of symbols for actions Magit should not confirm, or t.
 
 Many potentially dangerous commands by default ask the user for
@@ -254,6 +255,15 @@ References:
   to confirm by accepting the default (or selecting another).
   This action only concerns the deletion of multiple stashes at
   once.
+
+Publishing:
+
+  `set-and-push' When pushing to the upstream or the push-remote
+  and that isn't actually configured yet, then the user can first
+  set the target.  If s/he confirms the default too quickly, then
+  s/he might end up pushing to the wrong branch and if the remote
+  repository is configured to disallow fixing such mistakes, then
+  that can be quite embarrassing and annoying.
 
 Edit published history:
 
@@ -677,9 +687,11 @@ This is similar to `read-string', but
            (debug (form form &rest (characterp form body))))
   `(prog1 (pcase (read-char-choice
                   (concat ,prompt
-                          ,(concat (mapconcat 'cadr clauses ", ")
-                                   (and verbose ", or [C-g] to abort") " "))
-                  ',(mapcar 'car clauses))
+                          (mapconcat #'identity
+                                     (list ,@(mapcar #'cadr clauses))
+                                     ", ")
+                          ,(if verbose ", or [C-g] to abort " " "))
+                  ',(mapcar #'car clauses))
             ,@(--map `(,(car it) ,@(cddr it)) clauses))
      (message "")))
 

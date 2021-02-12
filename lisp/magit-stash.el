@@ -1,6 +1,6 @@
 ;;; magit-stash.el --- stash support for Magit  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2008-2020  The Magit Project Contributors
+;; Copyright (C) 2008-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
@@ -26,9 +26,6 @@
 ;; Support for Git stashes.
 
 ;;; Code:
-
-(eval-when-compile
-  (require 'subr-x))
 
 (require 'magit)
 (require 'magit-reflog)
@@ -273,7 +270,7 @@ The branch is created using `magit-branch-and-checkout', using the
 current branch or `HEAD' as the start-point."
   (interactive (list (magit-read-stash "Branch stash")
                      (magit-read-string-ns "Branch name")))
-  (let ((inhibit-magit-refresh t))
+  (let ((magit-inhibit-refresh t))
     (magit-branch-and-checkout branch (or (magit-get-current-branch) "HEAD")))
   (magit-stash-apply stash))
 

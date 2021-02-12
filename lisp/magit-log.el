@@ -1,6 +1,6 @@
 ;;; magit-log.el --- inspect Git history  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010-2020  The Magit Project Contributors
+;; Copyright (C) 2010-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
@@ -52,9 +52,6 @@
 (require 'ansi-color)
 (require 'crm)
 (require 'which-func)
-
-(eval-when-compile
-  (require 'subr-x))
 
 ;;; Options
 ;;;; Log Mode
@@ -456,7 +453,9 @@ the upstream isn't ahead of the current branch) show."
           (magit--any-wip-mode-enabled-p))
     :description "Wiplog"
     ("i" "index"          magit-wip-log-index)
-    ("w" "worktree"       magit-wip-log-worktree)]])
+    ("w" "worktree"       magit-wip-log-worktree)]
+   ["Other"
+    (5 "s" "shortlog"    magit-shortlog)]])
 
 ;;;###autoload (autoload 'magit-log-refresh "magit-log" nil t)
 (transient-define-prefix magit-log-refresh ()
@@ -874,6 +873,48 @@ is displayed in the current frame."
                         "\\[magit-log-double-commit-limit] first"))))
           (user-error "Parent %s does not exist" parent-rev))))))
 
+;;;; Shortlog Commands
+
+;;;###autoload (autoload 'magit-shortlog "magit-log" nil t)
+(transient-define-prefix magit-shortlog ()
+  "Show a history summary."
+  :man-page "git-shortlog"
+  :value '("--numbered" "--summary")
+  ["Arguments"
+   ("-n" "Sort by number of commits"      ("-n" "--numbered"))
+   ("-s" "Show commit count summary only" ("-s" "--summary"))
+   ("-e" "Show email addresses"           ("-e" "--email"))
+   ("-g" "Group commits by" "--group="
+    :choices ("author" "committer" "trailer:"))
+   (7 "-f" "Format string" "--format=")
+   (7 "-w" "Linewrap" "-w" :class transient-option)]
+  ["Shortlog"
+   ("s" "since" magit-shortlog-since)
+   ("r" "range" magit-shortlog-range)])
+
+(defun magit-git-shortlog (rev args)
+  (with-current-buffer (get-buffer-create "*magit-shortlog*")
+    (erase-buffer)
+    (save-excursion
+      (magit-git-insert "shortlog" args rev))
+    (switch-to-buffer-other-window (current-buffer))))
+
+;;;###autoload
+(defun magit-shortlog-since (rev args)
+  "Show a history summary for commits since REV."
+  (interactive
+   (list (magit-read-branch-or-commit "Shortlog since" (magit-get-current-tag))
+         (transient-args 'magit-shortlog)))
+  (magit-git-shortlog (concat rev "..") args))
+
+;;;###autoload
+(defun magit-shortlog-range (rev-or-range args)
+  "Show a history summary for commit or range REV-OR-RANGE."
+  (interactive
+   (list (magit-read-range-or-commit "Shortlog for revision or range")
+         (transient-args 'magit-shortlog)))
+  (magit-git-shortlog rev-or-range args))
+
 ;;; Log Mode
 
 (defvar magit-log-disable-graph-hack-args
@@ -1025,6 +1066,7 @@ Do not add this to a hook variable."
           (setq args (cons "--decorate=full" (remove "--decorate" args))))
         (when (member "--reverse" args)
           (setq args (remove "--graph" args)))
+        (setq args (magit-diff--maybe-add-stat-arguments args))
         args)
       "--use-mailmap" "--no-prefix" revs "--" files)))
 
@@ -1077,7 +1119,7 @@ Do not add this to a hook variable."
 
 (defconst magit-log-bisect-log-re
   (concat "^# "
-          "\\(?3:bad:\\|skip:\\|good:\\) "         ; "refs"
+          "\\(?3:[^: \n]+:\\) "                    ; "refs"
           "\\[\\(?1:[^]\n]+\\)\\] "                ; sha1
           "\\(?2:.*\\)$"))                         ; msg
 

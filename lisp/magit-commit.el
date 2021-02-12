@@ -1,6 +1,6 @@
 ;;; magit-commit.el --- create Git commits  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2008-2020  The Magit Project Contributors
+;; Copyright (C) 2008-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
@@ -34,12 +34,11 @@
 
 (eval-when-compile (require 'epa)) ; for `epa-protocol'
 (eval-when-compile (require 'epg))
-(eval-when-compile (require 'subr-x))
 
 ;;; Options
 
 (defcustom magit-commit-ask-to-stage 'verbose
-  "Whether to ask to stage all unstaged changes when committing and nothing is staged."
+  "Whether to ask to stage everything when committing and nothing is staged."
   :package-version '(magit . "2.3.0")
   :group 'magit-commands
   :type '(choice (const :tag "Ask" t)
@@ -145,27 +144,45 @@ Also see `git-commit-post-finish-hook'."
   :shortarg "-S"
   :argument "--gpg-sign="
   :allow-empty t
-  :reader 'magit-read-gpg-secret-key)
+  :reader 'magit-read-gpg-signing-key)
 
 (defvar magit-gpg-secret-key-hist nil)
 
-(defun magit-read-gpg-secret-key (prompt &optional initial-input history)
+(defun magit-read-gpg-secret-key
+    (prompt &optional initial-input history predicate)
   (require 'epa)
-  (let* ((keys (mapcar
-                (lambda (obj)
-                  (let ((key (epg-sub-key-id (car (epg-key-sub-key-list obj))))
-                        (author
-                         (when-let ((id-obj (car (epg-key-user-id-list obj))))
-                           (let ((id-str (epg-user-id-string id-obj)))
-                             (if (stringp id-str)
-                                 id-str
-                               (epg-decode-dn id-obj))))))
-                    (propertize key 'display (concat key " " author))))
+  (let* ((keys (mapcan
+                (lambda (cert)
+                  (and (or (not predicate)
+                           (funcall predicate cert))
+                       (let* ((key (car (epg-key-sub-key-list cert)))
+                              (fpr (epg-sub-key-fingerprint key))
+                              (id  (epg-sub-key-id key))
+                              (author
+                               (when-let ((id-obj
+                                           (car (epg-key-user-id-list cert))))
+                                 (let ((id-str (epg-user-id-string id-obj)))
+                                   (if (stringp id-str)
+                                       id-str
+                                     (epg-decode-dn id-obj))))))
+                         (list
+                          (propertize fpr 'display
+                                      (concat (substring fpr 0 (- (length id)))
+                                              (propertize id 'face 'highlight)
+                                              " " author))))))
                 (epg-list-keys (epg-make-context epa-protocol) nil t)))
          (choice (completing-read prompt keys nil nil nil
                                   history nil initial-input)))
     (set-text-properties 0 (length choice) nil choice)
     choice))
+
+(defun magit-read-gpg-signing-key (prompt &optional initial-input history)
+  (magit-read-gpg-secret-key
+   prompt initial-input history
+   (lambda (cert)
+     (cl-some (lambda (key)
+                (memq 'sign (epg-sub-key-capability key)))
+              (epg-key-sub-key-list cert)))))
 
 (transient-define-argument magit-commit:--reuse-message ()
   :description "Reuse commit message"

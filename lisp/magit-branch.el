@@ -1,6 +1,6 @@
 ;;; magit-branch.el --- branch support  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010-2020  The Magit Project Contributors
+;; Copyright (C) 2010-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
@@ -30,9 +30,6 @@
 ;; defined elsewhere.
 
 ;;; Code:
-
-(eval-when-compile
-  (require 'subr-x))
 
 (require 'magit)
 (require 'magit-reset)
@@ -498,7 +495,7 @@ that is being reset."
                                   (or (and (not (equal branch atpoint)) atpoint)
                                       (magit-get-upstream-branch branch)))
            current-prefix-arg)))
-  (let ((inhibit-magit-refresh t))
+  (let ((magit-inhibit-refresh t))
     (if (equal branch (magit-get-current-branch))
         (if (and (magit-anything-modified-p)
                  (not (yes-or-no-p
@@ -579,17 +576,18 @@ defaulting to the branch at point."
       (magit-run-git "branch" (if force "-D" "-d") branches))
      (t ; And now for something completely different.
       (let* ((branch (car branches))
-             (prompt (format "Branch %s is checked out.  " branch)))
+             (prompt (format "Branch %s is checked out.  " branch))
+             (main (magit-main-branch)))
         (when (equal branch (magit-get-current-branch))
-          (pcase (if (or (equal branch "master")
-                         (not (magit-rev-verify "master")))
+          (pcase (if (or (equal branch main)
+                         (not main))
                      (magit-read-char-case prompt nil
                        (?d "[d]etach HEAD & delete" 'detach)
                        (?a "[a]bort"                'abort))
                    (magit-read-char-case prompt nil
-                     (?d "[d]etach HEAD & delete"     'detach)
-                     (?c "[c]heckout master & delete" 'master)
-                     (?a "[a]bort"                    'abort)))
+                     (?d "[d]etach HEAD & delete" 'detach)
+                     (?c (format "[c]heckout %s & delete" main) 'main)
+                     (?a "[a]bort" 'abort)))
             (`detach (unless (or (equal force '(4))
                                  (member branch force)
                                  (magit-branch-merged-p branch t))
@@ -597,13 +595,13 @@ defaulting to the branch at point."
                          "Delete unmerged branch %s" ""
                          nil (list branch)))
                      (magit-call-git "checkout" "--detach"))
-            (`master (unless (or (equal force '(4))
+            (`main   (unless (or (equal force '(4))
                                  (member branch force)
-                                 (magit-branch-merged-p branch "master"))
+                                 (magit-branch-merged-p branch main))
                        (magit-confirm 'delete-unmerged-branch
                          "Delete unmerged branch %s" ""
                          nil (list branch)))
-                     (magit-call-git "checkout" "master"))
+                     (magit-call-git "checkout" main))
             (`abort  (user-error "Abort")))
           (setq force t))
         (magit-branch-maybe-delete-pr-remote branch)
@@ -686,15 +684,15 @@ the remote."
   (magit-call-git "branch" (if force "-M" "-m") old new)
   (when magit-branch-rename-push-target
     (let ((remote (magit-get-push-remote old))
-          (old-specific (magit-get "branch" old "pushRemote"))
-          (new-specific (magit-get "branch" new "pushRemote")))
-      (when (and old-specific (or force (not new-specific)))
-        ;; Keep the target setting branch specific, even if that is
+          (old-specified (magit-get "branch" old "pushRemote"))
+          (new-specified (magit-get "branch" new "pushRemote")))
+      (when (and old-specified (or force (not new-specified)))
+        ;; Keep the target setting branch specified, even if that is
         ;; redundant.  But if a branch by the same name existed before
         ;; and the rename isn't forced, then do not change a leftover
         ;; setting.  Such a leftover setting may or may not conform to
         ;; what we expect here...
-        (magit-set old-specific "branch" new "pushRemote"))
+        (magit-set old-specified "branch" new "pushRemote"))
       (when (and (equal (magit-get-push-remote new) remote)
                  ;; ...and if it does not, then we must abort.
                  (not (eq magit-branch-rename-push-target 'local-only))

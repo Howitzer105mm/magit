@@ -1,6 +1,6 @@
 ;;; magit-mode.el --- create and refresh Magit buffers  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010-2020  The Magit Project Contributors
+;; Copyright (C) 2010-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
@@ -29,16 +29,12 @@
 
 ;;; Code:
 
-(require 'cl-lib)
-(require 'dash)
-
-(eval-when-compile
-  (require 'subr-x))
-
-(require 'transient)
-
 (require 'magit-section)
 (require 'magit-git)
+
+(require 'format-spec)
+(require 'help-mode)
+(require 'transient)
 
 ;; For `magit-display-buffer-fullcolumn-most-v1' from `git-commit'
 (defvar git-commit-mode)
@@ -56,9 +52,6 @@
 (declare-function magit-status-goto-initial-section "magit-status" ())
 ;; For `magit-mode' from `bookmark'
 (defvar bookmark-make-record-function)
-
-(require 'format-spec)
-(require 'help-mode)
 
 ;;; Options
 
@@ -475,8 +468,8 @@ which visits the thing at point using `browse-url'."
     ["Cherry pick" magit-cherry-pick t]
     ["Revert commit" magit-revert t]
     "---"
-    ["Ignore globally" magit-gitignore-globally t]
-    ["Ignore locally" magit-gitignore-locally t]
+    ["Ignore at toplevel" magit-gitignore-in-topdir t]
+    ["Ignore in subdirectory" magit-gitignore-in-subdir t]
     ["Discard" magit-discard t]
     ["Reset head and index" magit-reset-mixed t]
     ["Stash" magit-stash-both t]
@@ -999,7 +992,7 @@ window."
 
 ;;; Refresh Buffers
 
-(defvar inhibit-magit-refresh nil)
+(defvar magit-inhibit-refresh nil)
 
 (defun magit-refresh ()
   "Refresh some buffers belonging to the current repository.
@@ -1009,7 +1002,7 @@ Refresh the current buffer if its major mode derives from
 
 Run hooks `magit-pre-refresh-hook' and `magit-post-refresh-hook'."
   (interactive)
-  (unless inhibit-magit-refresh
+  (unless magit-inhibit-refresh
     (unwind-protect
         (let ((start (current-time))
               (magit--refresh-cache (or magit--refresh-cache

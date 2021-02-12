@@ -106,7 +106,6 @@ VERSION ?= $(shell \
   test -e $(TOP).git && \
   git describe --tags --abbrev=0 --always | cut -c2-)
 
-ASYNC_VERSION       = 1.9.4
 DASH_VERSION        = 2.17.0
 GIT_COMMIT_VERSION  = 3.0.0
 LIBGIT_VERSION      = 0
@@ -114,7 +113,6 @@ MAGIT_SECTION_VERSION = 3.0.0
 TRANSIENT_VERSION   = 0
 WITH_EDITOR_VERSION = 2.9.2
 
-ASYNC_MELPA_SNAPSHOT       = 20200113
 DASH_MELPA_SNAPSHOT        = 20200524
 GIT_COMMIT_MELPA_SNAPSHOT  = 20200516
 LIBGIT_MELPA_SNAPSHOT      = 0
@@ -137,7 +135,15 @@ endif
 
 ifndef LOAD_PATH
 
-ELPA_DIR ?= $(HOME)/.emacs.d/elpa
+USER_EMACS_DIR = $(HOME)/.emacs.d
+ifeq "$(wildcard $(USER_EMACS_DIR))" ""
+  XDG_CONFIG_DIR = $(or $(XDG_CONFIG_HOME),$(HOME)/.config)
+  ifneq "$(wildcard $(XDG_CONFIG_DIR)/emacs)" ""
+    USER_EMACS_DIR = $(XDG_CONFIG_DIR)/emacs
+  endif
+endif
+
+ELPA_DIR ?= $(USER_EMACS_DIR)/elpa
 
 DASH_DIR ?= $(shell \
   find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/dash-[.0-9]*' 2> /dev/null | \
@@ -175,7 +181,7 @@ endif
 LOAD_PATH = -L $(TOP)lisp
 
 # When making changes here, then don't forget to adjust "Makefile",
-# ".travis.yml", ".github/ISSUE_TEMPLATE/bug_report.md",
+# ".github/workflows/test.yml", ".github/ISSUE_TEMPLATE/bug_report.md",
 # `magit-emacs-Q-command' and the "Installing from the Git Repository"
 # info node accordingly.  Also don't forget to "rgrep \b<pkg>\b".
 

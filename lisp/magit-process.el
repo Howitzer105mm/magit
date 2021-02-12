@@ -1,6 +1,6 @@
 ;;; magit-process.el --- process functionality  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010-2020  The Magit Project Contributors
+;; Copyright (C) 2010-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
@@ -31,18 +31,13 @@
 
 ;;; Code:
 
-(require 'ansi-color)
-(require 'cl-lib)
-(require 'dash)
-
-(eval-when-compile
-  (require 'subr-x))
-
-(require 'with-editor)
 (require 'magit-utils)
 (require 'magit-section)
 (require 'magit-git)
 (require 'magit-mode)
+
+(require 'ansi-color)
+(require 'with-editor)
 
 (declare-function auth-source-search "auth-source"
                   (&rest spec &key max require create delete &allow-other-keys))
@@ -437,7 +432,8 @@ conversion."
 ARGS is flattened and then used as arguments to Git.
 
 The current buffer's content is used as the process's standard
-input.
+input.  The buffer is assumed to be temporary and thus OK to
+modify.
 
 Option `magit-git-executable' specifies the Git executable and
 option `magit-git-global-arguments' specifies constant arguments.
@@ -584,7 +580,7 @@ Magit status buffer."
     (process-put process 'section section)
     (process-put process 'command-buf (current-buffer))
     (process-put process 'default-dir default-directory)
-    (when inhibit-magit-refresh
+    (when magit-inhibit-refresh
       (process-put process 'inhibit-refresh t))
     (oset section process process)
     (with-current-buffer process-buf
@@ -971,8 +967,8 @@ If STR is supplied, it replaces the `mode-line-process' text."
       ;; The following closure captures the repokey value, and is
       ;; added to `pre-command-hook'.
       (cl-labels ((enable-magit-process-unset-mode-line
-                   () ;; Remove ourself from the hook variable, so
-                      ;; that we only run once.
+                   () ;;; Remove ourself from the hook variable, so
+                      ;;; that we only run once.
                    (remove-hook 'pre-command-hook
                                 #'enable-magit-process-unset-mode-line)
                    ;; Clear the inhibit flag for the repository in

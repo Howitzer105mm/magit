@@ -8,7 +8,7 @@
 
 @copying
 @quotation
-Copyright (C) 2015-2020 Jonas Bernoulli <jonas@@bernoul.li>
+Copyright (C) 2015-2021 Jonas Bernoulli <jonas@@bernoul.li>
 
 You can redistribute this document and/or modify it under the terms
 of the GNU General Public License as published by the Free Software
@@ -31,7 +31,7 @@ General Public License for more details.
 @finalout
 @titlepage
 @title Magit User Manual
-@subtitle for version 2.90.1 (v2.90.1-1097-g10b4bec5+1)
+@subtitle for version 2.90.1 (v2.90.1-1171-gb4cf9fa9c+1)
 @author Jonas Bernoulli
 @page
 @vskip 0pt plus 1filll
@@ -53,10 +53,10 @@ directly from within Emacs.  While many fine Git clients exist, only
 Magit and Git itself deserve to be called porcelains.
 
 @noindent
-This manual is for Magit version 2.90.1 (v2.90.1-1097-g10b4bec5+1).
+This manual is for Magit version 2.90.1 (v2.90.1-1171-gb4cf9fa9c+1).
 
 @quotation
-Copyright (C) 2015-2020 Jonas Bernoulli <jonas@@bernoul.li>
+Copyright (C) 2015-2021 Jonas Bernoulli <jonas@@bernoul.li>
 
 You can redistribute this document and/or modify it under the terms
 of the GNU General Public License as published by the Free Software
@@ -2084,6 +2084,17 @@ to confirm by accepting the default (or selecting another).
 This action only concerns the deletion of multiple stashes at
 once.
 @end itemize
+
+
+@item
+Publishing:
+
+@code{set-and-push} When pushing to the upstream or the push-remote
+and that isn't actually configured yet, then the user can first
+set the target.  If s/he confirms the default too quickly, then
+s/he might end up pushing to the wrong branch and if the remote
+repository is configured to disallow fixing such mistakes, then
+that can be quite embarrassing and annoying.
 
 
 @item
@@ -4368,6 +4379,28 @@ also the foreground color.  Whether the outside of the region is
 dimmed at all depends on @code{magit-diff-highlight-hunk-region-functions}.
 @end defopt
 
+@defopt magit-diff-extra-stat-arguments
+
+This option specifies additional arguments to be used alongside
+@code{--stat}.
+
+The value is a list of zero or more arguments or a function that
+takes no argument and returns such a list.  These arguments are
+allowed here: @code{--stat-width}, @code{--stat-name-width},
+@code{--stat-graph-width} and @code{--compact-summary}.  Also see 
+@ifinfo
+@ref{git-diff,,,gitman,}.
+@end ifinfo
+@ifhtml
+@html
+the <a href="http://git-scm.com/docs/git-diff">git-diff(1)</a> manpage.
+@end html
+@end ifhtml
+@iftex
+the git-diff(1) manpage.
+@end iftex
+@end defopt
+
 @node Revision Buffer
 @subsection Revision Buffer
 
@@ -4958,7 +4991,10 @@ Start a bisect session.
 
 Bisecting a bug means to find the commit that introduced it.
 This command starts such a bisect session by asking for a known
-good and a bad commit.
+good commit and a known bad commit.  If you're bisecting a change
+that isn't a regression, you can select alternate terms that are
+conceptually more fitting than "bad" and "good", but the infix
+arguments to do so are disabled by default.
 
 @kindex B s
 @cindex magit-bisect-run
@@ -4984,6 +5020,15 @@ that the commit does contain the bug in question.
 
 Mark the current commit as good.  Use this after you have asserted
 that the commit does not contain the bug in question.
+
+@kindex B m
+@cindex magit-bisect-mark
+@item @kbd{B m} @tie{}@tie{}@tie{}@tie{}(@code{magit-bisect-mark})
+
+Mark the current commit with one of the bisect terms.  This command
+provides an alternative to @code{magit-bisect-bad} and
+@code{magit-bisect-good} and is useful when using terms other than "bad"
+and "good".  This suffix is disabled by default.
 
 @kindex B k
 @cindex magit-bisect-skip
@@ -6452,8 +6497,8 @@ Also see option @code{magit-branch-prefer-remote-upstream}.
 @cindex magit-branch-and-checkout
 @item @kbd{b c} @tie{}@tie{}@tie{}@tie{}(@code{magit-branch-and-checkout})
 
-This command creates a new branch like @code{magit-branch}, but then also
-checks it out.
+This command creates a new branch like @code{magit-branch-create}, but then
+also checks it out.
 
 Also see option @code{magit-branch-prefer-remote-upstream}.
 
@@ -9344,9 +9389,10 @@ instead of the reference name.
 
 When the region is active, this command saves that to the
 @code{kill-ring}, like @code{kill-ring-save} would, instead of behaving as
-described above.  If a prefix argument is used and the region is
-within a hunk, it strips the outer diff marker column before saving
-the text.
+described above. If a prefix argument is used and the region is
+within a hunk, then it strips the diff marker column and keeps
+only either the added or removed lines, depending on the sign of
+the prefix argument.
 
 @kindex M-w
 @cindex magit-copy-buffer-revision
@@ -10229,9 +10275,11 @@ for more information.
 
 On Catalina, and potentially other macOS releases, there may be a
 performance problem where any action takes 20 times longer on Darwin
-than on Linux.  This can be fixed by setting @code{magit-git-executable} to
-the absolute path of the @code{git} executable, instead of relying on
-resolving the @code{$PATH}.
+than on Linux.  This can be worked around by setting
+@code{magit-git-executable} to the absolute path of the @code{git} executable,
+instead of relying on resolving the @code{$PATH}.  You should not do that if
+you want to use Magit on remote machines using Tramp and if @code{git} is not
+installed in the same location on those machines.
 
 @node Default Bindings
 @subsection Default Bindings
@@ -10466,21 +10514,15 @@ Calls PROGRAM synchronously with ARGS@.
 Calls git synchronously with ARGS and then refreshes.
 @end defun
 
-@defun magit-run-git-with-input input &rest args
+@defun magit-run-git-with-input &rest args
 
-Calls git synchronously with ARGS and sends it INPUT on standard
-input.
+Calls git synchronously with ARGS and sends it the content of the
+current buffer on standard input.
 
-INPUT should be a buffer or the name of an existing buffer.  The
-content of that buffer is used as the process's standard input.
-After the process returns a refresh is performed.
-
-As a special case, INPUT may also be nil.  In that case the content
-of the current buffer is used as standard input and @strong{no} refresh is
-performed.
-
-This function actually runs git asynchronously.  But then it waits
-for the process to return, so the function itself is synchronous.
+If the current buffer's @code{default-directory} is on a remote
+filesystem, this function actually runs git asynchronously.  But
+then it waits for the process to return, so the function itself is
+synchronous.
 @end defun
 
 @defun magit-run-git-with-logfile file &rest args
@@ -10537,7 +10579,7 @@ current when this function was called (if it is a Magit buffer and
 still alive), as well as the respective Magit status buffer.
 @end defun
 
-@defun magit-start-git &rest args
+@defun magit-start-git input &rest args
 
 Start Git, prepare for refresh, and return the process object.
 
